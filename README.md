@@ -19,6 +19,20 @@ Rust implementation of a JSON to SQL from goflow2
 Current test:
 json file of 537M with 852,381 records.
 
+Just to isolate the JSON parsing if we remove the inserts
+```
+2025-03-23T13:05:32.267132Z  INFO goflow_loader: Starting
+2025-03-23T13:05:54.290909Z  INFO goflow_loader: Done
+```
+0:22 elapsed
+
+Even storing every record in a vector
+```
+2025-03-23T13:15:00.399288Z  INFO goflow_loader: Starting
+2025-03-23T13:15:21.978510Z  INFO goflow_loader: Done
+```
+0:21 elapsed
+
 ### Individual INSERTs using PgPool
 4.2k transactions per second
 
@@ -63,3 +77,14 @@ Every 10k records we commit the transaction
 2025-03-23T04:11:59.669130Z  INFO goflow_loader: Done
 ```
 7:09 elapsed - I'm confused...
+
+High and very consistent block I/O
+
+### 50k transactions
+
+Every 50k records we commit the transaction
+```
+2025-03-23T04:13:58.503754Z  INFO goflow_loader: Starting
+2025-03-23T04:21:16.928801Z  INFO goflow_loader: Done
+```
+7:18 elapsed

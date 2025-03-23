@@ -508,7 +508,9 @@ async fn main() ->  Result<(), sqlx::Error>  {
         file
     );
 
-    let mut counter: i32 = 0;
+    // Loop variables
+    let mut parsed_vec: Vec<NetflowRecord> = Vec::new();
+    let mut counter: u32 = 0;
 
     // Iterate through the lines in the file
     for line in reader.lines() {
@@ -526,14 +528,15 @@ async fn main() ->  Result<(), sqlx::Error>  {
                             continue;
                         }
                         // println!("{:?}", current_record);
-                        insert_flow(&mut pg_transaction, &current_record).await?;
+                        // insert_flow(&mut pg_transaction, &current_record).await?;
+                        parsed_vec.push(current_record);
                     },
                     Err(e) => {
                         eprintln!("Failed to parse JSON: {}", e);
                     }
                 }
                 counter = counter + 1;
-                if counter % 10000 == 0 {
+                if counter % 50000 == 0 {
                     info!("Processed rows: {}", counter);
                     // Close the transaction and restart it
                     pg_transaction.commit().await.expect("Failed to commit transaction");
