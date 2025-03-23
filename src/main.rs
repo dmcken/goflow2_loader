@@ -492,6 +492,7 @@ async fn main() ->  Result<(), sqlx::Error>  {
     let mut pg_connection = PgConnection::connect(db_url)
         .await
         .expect("Failed to connect to the database");
+    // let mut pg_transaction =
 
     let protocol_map = create_protocol_map();
     let ethernet_map = create_ethernet_protocol_map();
@@ -504,8 +505,7 @@ async fn main() ->  Result<(), sqlx::Error>  {
         file
     );
 
-    // Buffer
-
+    let mut counter: i32 = 0;
 
     // Iterate through the lines in the file
     for line in reader.lines() {
@@ -528,6 +528,10 @@ async fn main() ->  Result<(), sqlx::Error>  {
                     Err(e) => {
                         eprintln!("Failed to parse JSON: {}", e);
                     }
+                }
+                counter = counter + 1;
+                if counter % 10000 == 0 {
+                    info!("Processed rows: {}", counter);
                 }
             }
             Err(e) => {
