@@ -535,6 +535,10 @@ async fn main() ->  Result<(), sqlx::Error>  {
                 counter = counter + 1;
                 if counter % 10000 == 0 {
                     info!("Processed rows: {}", counter);
+                    // Close the transaction and restart it
+                    pg_transaction.commit().await.expect("Failed to commit transaction");
+                    pg_transaction = pg_connection.begin().await
+        .expect("Failed to begin transaction");
                 }
             }
             Err(e) => {

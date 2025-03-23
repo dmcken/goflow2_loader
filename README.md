@@ -54,3 +54,12 @@ The entire file as one massive transaction (postgres is going to curse me, but s
 
 ```
 7:04 elapsed
+
+### 10k transactions
+
+Every 10k records we commit the transaction
+```
+2025-03-23T04:04:50.961879Z  INFO goflow_loader: Starting
+2025-03-23T04:11:59.669130Z  INFO goflow_loader: Done
+```
+7:09 elapsed - I'm confused...
