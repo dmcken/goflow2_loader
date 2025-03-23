@@ -415,7 +415,8 @@ fn parse_json_record(parsed_json: &JSONNetflowRecord,
 //     return pool;
 // }
 
-async fn insert_flow(pool: &mut PgConnection, current_record: &NetflowRecord) -> Result<(), Error> {
+async fn insert_flow(db_obj: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+                     current_record: &NetflowRecord) -> Result<(), Error> {
 
     let query = "
         INSERT INTO public.flows (
@@ -472,7 +473,7 @@ async fn insert_flow(pool: &mut PgConnection, current_record: &NetflowRecord) ->
         .bind(&current_record.post_nat_dst_ipv4_address)
         .bind(&current_record.post_napt_src_transport_port)
         .bind(&current_record.post_napt_dst_transport_port)
-        .execute( pool)
+        .execute( &mut **db_obj)
         .await
         .expect("Failed to insert row");
 
@@ -492,7 +493,9 @@ async fn main() ->  Result<(), sqlx::Error>  {
     let mut pg_connection = PgConnection::connect(db_url)
         .await
         .expect("Failed to connect to the database");
-    // let mut pg_transaction =
+    let mut pg_transaction = pg_connection.begin()
+        .await
+        .expect("Failed to begin transaction");
 
     let protocol_map = create_protocol_map();
     let ethernet_map = create_ethernet_protocol_map();
@@ -523,7 +526,7 @@ async fn main() ->  Result<(), sqlx::Error>  {
                             continue;
                         }
                         // println!("{:?}", current_record);
-                        insert_flow(&mut pg_connection, &current_record).await?;
+                        insert_flow(&mut pg_transaction, &current_record).await?;
                     },
                     Err(e) => {
                         eprintln!("Failed to parse JSON: {}", e);
@@ -540,6 +543,7 @@ async fn main() ->  Result<(), sqlx::Error>  {
         }
         // break;
     }
+    pg_transaction.commit().await.expect("Failed to commit transaction");
 
     info!("Done");
     Ok(())

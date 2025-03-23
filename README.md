@@ -44,3 +44,13 @@ json file of 537M with 852,381 records.
 2025-03-23T01:10:13.657385Z  INFO goflow_loader: Done
 ```
 11:58 elapsed
+
+### 800k transaction
+
+The entire file as one massive transaction (postgres is going to curse me, but somehow it works...).
+```
+2025-03-23T03:30:29.719320Z  INFO goflow_loader: Starting
+2025-03-23T03:37:33.674590Z  INFO goflow_loader: Done
+
+```
+7:04 elapsed
