@@ -10,3 +10,6 @@ serde = "1.0"
 serde_json = "1.0"
 sqlx = { version = "0.8.3", features = [ "runtime-async-std", "postgres","chrono","ipnetwork","json" ] }
 tokio = { version = "1.27.0", features = ["macros"] }
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+

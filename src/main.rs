@@ -4,11 +4,16 @@
 use std::{fs::File, io::{self, BufRead}, path::Path};
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
-// External
-use chrono::{DateTime, Utc}; 
-use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Error};
 
+// External
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use sqlx::{Connection, Error, PgConnection, PgPool, Postgres};
+use tracing::{info, debug, warn, error, span, Level};
+use tracing_subscriber;
+
+
+// Logger
 
 #[derive(Debug)]
 struct NetflowRecord {
@@ -266,8 +271,7 @@ fn create_protocol_map() -> HashMap<String,i16> {
 		126: CRTP
 		127: CRUDP
 		128: SSCOPMCE
-		129: IPLT
-		130: SPS
+		129: IPLTpostgres bulk insert
 		131: PIPE
 		132: SCTP
 		133: FC
@@ -411,7 +415,7 @@ fn parse_json_record(parsed_json: &JSONNetflowRecord,
 //     return pool;
 // }
 
-async fn insert_flow(pool: &PgPool, current_record: &NetflowRecord) -> Result<(), Error> {
+async fn insert_flow(pool: &mut PgConnection, current_record: &NetflowRecord) -> Result<(), Error> {
 
     let query = "
         INSERT INTO public.flows (
@@ -468,7 +472,9 @@ async fn insert_flow(pool: &PgPool, current_record: &NetflowRecord) -> Result<()
         .bind(&current_record.post_nat_dst_ipv4_address)
         .bind(&current_record.post_napt_src_transport_port)
         .bind(&current_record.post_napt_dst_transport_port)
-        .execute(pool).await?;
+        .execute( pool)
+        .await
+        .expect("Failed to insert row");
 
     // println!("Inserted flow: {:?}", current_record);
 
@@ -479,15 +485,27 @@ async fn insert_flow(pool: &PgPool, current_record: &NetflowRecord) -> Result<()
 
 #[async_std::main] 
 async fn main() ->  Result<(), sqlx::Error>  {
-    let pool = PgPool::connect("postgres://netflow:6C5fcjnmwPCdw36VmA24@192.168.1.60/netflow")
-        .await?;
+    tracing_subscriber::fmt::init();
+    info!("Starting");
+
+    let db_url = "postgres://netflow:6C5fcjnmwPCdw36VmA24@192.168.1.60/netflow";
+    let mut pg_connection = PgConnection::connect(db_url)
+        .await
+        .expect("Failed to connect to the database");
 
     let protocol_map = create_protocol_map();
     let ethernet_map = create_ethernet_protocol_map();
+
     // JSON file to process
     let path = Path::new("goflow2_20250315_1723.log");
     let file = File::open(path)?;
-    let reader = io::BufReader::new(file);
+    let reader = io::BufReader::with_capacity(
+        16 * 1024 * 1024, // 16MB bufffer 
+        file
+    );
+
+    // Buffer
+
 
     // Iterate through the lines in the file
     for line in reader.lines() {
@@ -505,7 +523,7 @@ async fn main() ->  Result<(), sqlx::Error>  {
                             continue;
                         }
                         // println!("{:?}", current_record);
-                        insert_flow(&pool, &current_record).await?;
+                        insert_flow(&mut pg_connection, &current_record).await?;
                     },
                     Err(e) => {
                         eprintln!("Failed to parse JSON: {}", e);
@@ -519,5 +537,6 @@ async fn main() ->  Result<(), sqlx::Error>  {
         // break;
     }
 
+    info!("Done");
     Ok(())
 }
