@@ -100,10 +100,12 @@ Every 50k records we commit the transaction
 
 ### Bulk-insert (no transactions)
 
-1k block - 0:38.00
-2k block - 0:37.00
-3k block - 0:36.04
-4k block - 0:35.79
+| Block size | Elapsed time |
+| ---------- | ------------ |
+| 1k | 0:38.00 |
+| 2k | 0:37.00 |
+| 3k | 0:36.04 |
+| 4k | 0:35.79 |
 
 At 5k blocks or larger the program panics with the following error:
 ```
