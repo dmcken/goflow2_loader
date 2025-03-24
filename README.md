@@ -3,13 +3,7 @@ Rust implementation of a JSON to SQL from goflow2
 
 
 **Warning: this is me learning rust so using this for production or even learning is probably a bad idea**
-
-
-
-
-
-
-
+**Yes I know a postgres password is in the code this is a test box not exposed to the internet. As soon as I learn how to move it out to an env file I will.**
 
 
 
