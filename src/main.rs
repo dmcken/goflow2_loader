@@ -8,14 +8,14 @@ use std::net::{IpAddr, Ipv4Addr};
 // External
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{Connection, Error, PgConnection, PgPool, Postgres};
+use sqlx::{pool, Connection, Error, PgConnection, PgPool, Pool, Postgres, QueryBuilder};
 use tracing::{info, debug, warn, error, span, Level};
 use tracing_subscriber;
 
 
 // Logger
 
-#[derive(Debug)]
+//#[derive(Debug)]
 struct NetflowRecord {
     time_received_ns: DateTime<Utc>,
     sequence_num: i64,        
@@ -483,19 +483,65 @@ async fn insert_flow(db_obj: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     Ok(())
 }
 
+async fn bulk_insert(db_obj: &mut PgConnection, to_insert: &Vec<NetflowRecord>) {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("
+        INSERT INTO public.flows (
+            time_received_ns,
+            sequence_num,        
+            time_flow_start_ns,
+            time_flow_end_ns,
+            bytes,
+            packets,
+            src_addr,
+            dst_addr,
+            etype,
+            proto,
+            src_port,
+            dst_port,
+            post_nat_src_ipv4_address,
+            post_nat_dst_ipv4_address,
+            post_napt_src_transport_port,
+            post_napt_dst_transport_port
+        ) 
+    ");
+    qb.push_values(to_insert.iter(), |mut b, current_record| {
+        b.push_bind(current_record.time_received_ns)   
+         .push_bind(current_record.sequence_num)
+         .push_bind(current_record.time_flow_start_ns)
+         .push_bind(current_record.time_flow_end_ns)
+         .push_bind(current_record.bytes)
+         .push_bind(current_record.packets)
+         .push_bind(current_record.src_addr)
+         .push_bind(current_record.dst_addr)
+         .push_bind(current_record.etype)
+         .push_bind(current_record.proto)
+         .push_bind(current_record.src_port)
+         .push_bind(current_record.dst_port)
+         .push_bind(current_record.post_nat_src_ipv4_address)
+         .push_bind(current_record.post_nat_dst_ipv4_address)
+         .push_bind(current_record.post_napt_src_transport_port)
+         .push_bind(current_record.post_napt_dst_transport_port);
+    });
+    let query = qb.build();
+
+    query.execute(db_obj)
+        .await
+        .expect("Failed to insert rows");;
+}
 
 #[async_std::main] 
 async fn main() ->  Result<(), sqlx::Error>  {
     tracing_subscriber::fmt::init();
     info!("Starting");
+    let start_time = Utc::now().time();
 
     let db_url = "postgres://netflow:6C5fcjnmwPCdw36VmA24@192.168.1.60/netflow";
     let mut pg_connection = PgConnection::connect(db_url)
         .await
         .expect("Failed to connect to the database");
-    let mut pg_transaction = pg_connection.begin()
-        .await
-        .expect("Failed to begin transaction");
+    // let mut pg_transaction = pg_connection.begin()
+    //     .await
+    //     .expect("Failed to begin transaction");
 
     let protocol_map = create_protocol_map();
     let ethernet_map = create_ethernet_protocol_map();
@@ -504,13 +550,14 @@ async fn main() ->  Result<(), sqlx::Error>  {
     let path = Path::new("goflow2_20250315_1723.log");
     let file = File::open(path)?;
     let reader = io::BufReader::with_capacity(
-        16 * 1024 * 1024, // 16MB bufffer 
+        32 * 1024 * 1024, // 16MB bufffer 
         file
     );
 
     // Loop variables
-    let mut parsed_vec: Vec<NetflowRecord> = Vec::new();
+    let mut parsed_vec: Vec<NetflowRecord> = Vec::with_capacity(50000);
     let mut counter: u32 = 0;
+    let block_size: u32 = 5000;
 
     // Iterate through the lines in the file
     for line in reader.lines() {
@@ -536,12 +583,14 @@ async fn main() ->  Result<(), sqlx::Error>  {
                     }
                 }
                 counter = counter + 1;
-                if counter % 50000 == 0 {
+                if counter % block_size == 0 {
                     info!("Processed rows: {}", counter);
+                    bulk_insert(&mut pg_connection, &parsed_vec).await; 
+                    parsed_vec.clear();
                     // Close the transaction and restart it
-                    pg_transaction.commit().await.expect("Failed to commit transaction");
-                    pg_transaction = pg_connection.begin().await
-        .expect("Failed to begin transaction");
+                    //pg_transaction.commit().await.expect("Failed to commit transaction");
+                    //pg_transaction = pg_connection.begin().await
+                    //    .expect("Failed to begin transaction");
                 }
             }
             Err(e) => {
@@ -550,8 +599,11 @@ async fn main() ->  Result<(), sqlx::Error>  {
         }
         // break;
     }
-    pg_transaction.commit().await.expect("Failed to commit transaction");
+    // pg_transaction.commit().await.expect("Failed to commit transaction");
 
-    info!("Done");
+    let end_time = Utc::now().time();
+    let diff = end_time - start_time;
+    info!("Elapsed: {}", diff);
+    info!("Done");    
     Ok(())
 }

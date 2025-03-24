@@ -33,6 +33,15 @@ Even storing every record in a vector
 ```
 0:21 elapsed
 
+Pre-allocating vector
+```
+2025-03-23T20:12:22.681374Z  INFO goflow_loader: Starting
+2025-03-23T20:12:44.954359Z  INFO goflow_loader: Done
+```
+
+2025-03-23T20:17:27.797369Z  INFO goflow_loader: Starting
+2025-03-23T20:17:50.220115Z  INFO goflow_loader: Done
+
 ### Individual INSERTs using PgPool
 4.2k transactions per second
 
@@ -88,3 +97,15 @@ Every 50k records we commit the transaction
 2025-03-23T04:21:16.928801Z  INFO goflow_loader: Done
 ```
 7:18 elapsed
+
+### Bulk-insert (no transactions)
+
+1k block - 0:38.00
+2k block - 0:37.00
+3k block - 0:36.04
+4k block - 0:35.79
+
+At 5k blocks or larger the program panics with the following error:
+```
+Failed to insert rows: Protocol("PgConnection::run(): too many arguments for query: 80000 (sqlx_postgres::connection::executor:216)")
+```
