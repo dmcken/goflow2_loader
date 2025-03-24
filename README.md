@@ -47,50 +47,17 @@ services:
 | Baseline | JSON parsing | 0:22 |  |
 | Baseline | JSON Parsing + storing all records in vector | 0:21 |  |
 | Baseline | JSON Parsing + storing all records in a pre-allocated vector | 0:22 |  |
-| Basic | INSERTs to PgPool  + no transactions | 17:04 | 4.2k transactions per second |
-| Basic | INSERTs to PgConnection + no transactions |  11:00 | 7.2k transactions per second |
-| Basic | INSERTs to PgConnection + log + counter + no transactions | 11:58 |  |
+| Basic | INSERTs to PgPool | 17:04 | 4.2k transactions per second |
+| Basic | INSERTs to PgConnection |  11:00 | 7.2k transactions per second |
+| Basic | INSERTs to PgConnection + log + counter | 11:58 |  |
+| Transaction | One massive transaction | 7:04 | I am surprised that postgres accepted this in its default state |
+| Transaction | 10k inserts per transaction | 7:09 | High and very consistent block I/O in PgAdmin |
+| Transaction | 50k inserts per transaction | 7:18 | Clearly not helping |
+| Bulk-Insert (no-transaction) | 1k blocks per insert | 0:38.00 |  |
+| Bulk-Insert (no-transaction) | 2k blocks per insert | 0:37.00 |  |
+| Bulk-Insert (no-transaction) | 3k blocks per insert | 0:36.04 |  |
+| Bulk-Insert (no-transaction) | 4k blocks per insert | 0:35.79 |  |
+| Bulk-Insert (no-transaction) | 5k blocks per insert | failed | At 5k blocks or larger the program panics with the error[^1] |
 
-### 800k transaction
 
-The entire file as one massive transaction (postgres is going to curse me, but somehow it works...).
-```
-2025-03-23T03:30:29.719320Z  INFO goflow_loader: Starting
-2025-03-23T03:37:33.674590Z  INFO goflow_loader: Done
-
-```
-7:04 elapsed
-
-### 10k transactions
-
-Every 10k records we commit the transaction
-```
-2025-03-23T04:04:50.961879Z  INFO goflow_loader: Starting
-2025-03-23T04:11:59.669130Z  INFO goflow_loader: Done
-```
-7:09 elapsed - I'm confused...
-
-High and very consistent block I/O
-
-### 50k transactions
-
-Every 50k records we commit the transaction
-```
-2025-03-23T04:13:58.503754Z  INFO goflow_loader: Starting
-2025-03-23T04:21:16.928801Z  INFO goflow_loader: Done
-```
-7:18 elapsed
-
-### Bulk-insert (no transactions)
-
-| Block size | Elapsed time |
-| ---------- | ------------ |
-| 1k | 0:38.00 |
-| 2k | 0:37.00 |
-| 3k | 0:36.04 |
-| 4k | 0:35.79 |
-
-At 5k blocks or larger the program panics with the following error:
-```
-Failed to insert rows: Protocol("PgConnection::run(): too many arguments for query: 80000 (sqlx_postgres::connection::executor:216)")
-```
+[^1]: `Failed to insert rows: Protocol("PgConnection::run(): too many arguments for query: 80000 (sqlx_postgres::connection::executor:216)")`
