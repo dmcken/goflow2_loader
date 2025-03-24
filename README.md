@@ -14,33 +14,43 @@ Rust implementation of a JSON to SQL from goflow2
 
 
 
-## Tuning
+## Testing + Optimization
 
-Current test:
-json file of 537M with 852,381 records.
+Current test: json file of 537M with 852,381 records.
 
-Just to isolate the JSON parsing if we remove the inserts
+Run against a simple postgres in a container (only properties in .env are passwords):
 ```
-2025-03-23T13:05:32.267132Z  INFO goflow_loader: Starting
-2025-03-23T13:05:54.290909Z  INFO goflow_loader: Done
-```
-0:22 elapsed
+services:
+  db:
+    image: postgres
+    restart: always
+    # set shared memory limit when using docker-compose
+    shm_size: 128mb
+    # or set shared memory limit when deploy via swarm stack
+    env_file: ".env"
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+    #  - type: tmpfs
+    #    target: /dev/shm
+    #    tmpfs:
+    #      size: 134217728 # 128*2^20 bytes = 128Mb
+    ports:
+      - 5432:5432
 
-Even storing every record in a vector
-```
-2025-03-23T13:15:00.399288Z  INFO goflow_loader: Starting
-2025-03-23T13:15:21.978510Z  INFO goflow_loader: Done
-```
-0:21 elapsed
-
-Pre-allocating vector
-```
-2025-03-23T20:12:22.681374Z  INFO goflow_loader: Starting
-2025-03-23T20:12:44.954359Z  INFO goflow_loader: Done
+  pgadmin:
+    image: dpage/pgadmin4
+    env_file: ".env"
+    ports:
+      - 16543:80
 ```
 
-2025-03-23T20:17:27.797369Z  INFO goflow_loader: Starting
-2025-03-23T20:17:50.220115Z  INFO goflow_loader: Done
+
+| Test | Sub-test | elapsed |
+| ---- | -------- | ------- |
+| Baseline | JSON parsing | 0:22 |
+| Baseline | JSON Parsing + storing all records in vector | 0:21 |
+| Baseline | JSON Parsing + storing all records in a pre-allocated vector | 0:22 |
+
 
 ### Individual INSERTs using PgPool
 4.2k transactions per second
