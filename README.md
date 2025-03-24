@@ -15,7 +15,7 @@ Rust implementation of a JSON to SQL from goflow2
 
 Current test: json file of 537M with 852,381 records.
 
-Run against a simple postgres in a container (only properties in .env are passwords):
+Run against a simple postgres in a container (only properties in .env are passwords), unless specifically noted postgres:
 ```
 services:
   db:
@@ -39,6 +39,40 @@ services:
     env_file: ".env"
     ports:
       - 16543:80
+```
+
+Postgres version: `PostgreSQL 17.1 (Debian 17.1-1.pgdg120+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit`
+
+The table being inserted to is as follows:
+```sql
+-- Table: public.flows
+
+-- DROP TABLE IF EXISTS public.flows;
+
+CREATE TABLE IF NOT EXISTS public.flows
+(
+    time_received_ns timestamp without time zone NOT NULL,
+    sequence_num bigint NOT NULL,
+    time_flow_start_ns bigint NOT NULL,
+    time_flow_end_ns bigint NOT NULL,
+    bytes bigint NOT NULL,
+    packets bigint NOT NULL,
+    src_addr inet NOT NULL,
+    dst_addr inet NOT NULL,
+    etype integer NOT NULL,
+    proto smallint NOT NULL,
+    src_port integer NOT NULL,
+    dst_port integer NOT NULL,
+    post_nat_src_ipv4_address inet,
+    post_nat_dst_ipv4_address inet,
+    post_napt_src_transport_port integer,
+    post_napt_dst_transport_port integer
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.flows
+    OWNER to netflow;
 ```
 
 
